@@ -50,6 +50,32 @@ void extractArchiveToDisk(Archive archive, String outputPath,
   }
 }
 
+Future<void> extractArchiveToDiskAsync(Archive archive, String outputPath,
+    {int? bufferSize}) async {
+  final outDir = Directory(outputPath);
+
+  if (!await outDir.exists()) {
+    await outDir.create(recursive: true);
+  }
+  for (final file in archive.files) {
+    final filePath = '$outputPath${Platform.pathSeparator}${file.name}';
+
+    if (!file.isFile || !isWithinOutputPath(outputPath, filePath)) {
+      continue;
+    }
+
+    final output = File(filePath);
+    final f = await output.create(recursive: true);
+    final fp = await f.open(mode: FileMode.write);
+
+    final bytes = file.content as List<int>;
+    await fp.writeFrom(bytes);
+
+    file.clear();
+    await fp.close();
+  }
+}
+
 void extractFileToDisk(String inputPath, String outputPath,
     {String? password, bool asyncWrite = false, int? bufferSize}) {
   Directory? tempDir;

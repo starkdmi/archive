@@ -60,6 +60,15 @@ class FileHandle {
     _position += size;
     return size;
   }
+
+  Future<int> readIntoAsync(Uint8List buffer, [int? end]) async {
+    if (_file == null) {
+      open();
+    }
+    final size = await _file!.readInto(buffer, 0, end);
+    _position += size;
+    return size;
+  }
 }
 
 class InputFileStream extends InputStreamBase {
@@ -85,6 +94,21 @@ class InputFileStream extends InputStreamBase {
     bufferSize = max(min(bufferSize, _fileSize), 8);
     _buffer = Uint8List(min(bufferSize, 8));
     _readBuffer();
+  }
+
+  InputFileStream.async(this.path,
+      {this.byteOrder = LITTLE_ENDIAN, int bufferSize = kDefaultBufferSize})
+      : _file = FileHandle(path) {
+    _fileSize = _file.length;
+    // Don't have a buffer bigger than the file itself.
+    // Also, make sure it's at least 8 bytes, so reading a 64-bit value doesn't
+    // have to deal with buffer overflow.
+    bufferSize = max(min(bufferSize, _fileSize), 8);
+    _buffer = Uint8List(min(bufferSize, 8));
+  }
+
+  Future init() async {
+    await _readBufferAsync();
   }
 
   InputFileStream.clone(InputFileStream other, {int? position, int? length})
@@ -360,5 +384,11 @@ class InputFileStream extends InputStreamBase {
     _bufferPosition = 0;
     _file.position = _fileOffset + _position;
     _bufferSize = _file.readInto(_buffer, _buffer.length);
+  }
+
+  Future<void> _readBufferAsync() async {
+    _bufferPosition = 0;
+    _file.position = _fileOffset + _position;
+    _bufferSize = await _file.readIntoAsync(_buffer, _buffer.length);
   }
 }
